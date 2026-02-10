@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block content %}
+<h3>Settings / Providers</h3>
+<table class="table">
+  <thead><tr><th>Camera</th><th>Page URL</th><th>Resolved stream</th><th>Resolved snapshot</th><th>Override hints</th></tr></thead>
+  <tbody>
+  {% for c in cameras %}
+    <tr>
+      <td>{{ c.id }}</td>
+      <td><a href="{{ c.page_url }}" target="_blank">page</a></td>
+      <td>{{ c.resolved_stream_url or 'needs override' }}</td>
+      <td>{{ c.resolved_snapshot_url or 'needs override' }}</td>
+      <td><code>CAM_{{ c.id|upper }}_STREAM_URL</code><br><code>CAM_{{ c.id|upper }}_SNAPSHOT_URL</code></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
