@@ -1,0 +1,27 @@
+services:
+  web:
+    build: .
+    command: gunicorn -w 2 -b 0.0.0.0:8000 'app.web:create_app()'
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_PATH=/data/app.db
+      - DATA_DIR=/data
+      - LIVE_FPS=3
+      - SNAPSHOT_INTERVAL_SECONDS=60
+    volumes:
+      - ./data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  worker:
+    build: .
+    command: python -m app.worker
+    environment:
+      - DB_PATH=/data/app.db
+      - DATA_DIR=/data
+      - SNAPSHOT_INTERVAL_SECONDS=60
+    volumes:
+      - ./data:/data

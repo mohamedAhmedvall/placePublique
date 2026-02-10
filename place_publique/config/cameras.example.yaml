@@ -1,0 +1,9 @@
+cameras:
+  - id: abbey
+    name: Abbey Road
+    page_url: https://www.earthcam.com/world/england/london/abbeyroad/?cam=abbeyroad_uk
+    roi: null
+  - id: shibuya
+    name: Shibuya Crossing
+    page_url: https://www.skylinewebcams.com/fr/webcam/japan/kanto/tokyo/tokyo-shibuya-scramble-crossing.html
+    roi: null

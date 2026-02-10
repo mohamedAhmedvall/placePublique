@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row g-3 mb-4">
+  <div class="col-md-3"><div class="card"><div class="card-body"><h6>Total (24h)</h6><h3>{{ total }}</h3></div></div></div>
+  <div class="col-md-3"><div class="card"><div class="card-body"><h6>Average / interval</h6><h3>{{ avg }}</h3></div></div></div>
+  <div class="col-md-3"><div class="card"><div class="card-body"><h6>Peak</h6><h3>{{ peak }}</h3></div></div></div>
+  <div class="col-md-3"><div class="card"><div class="card-body"><h6>Availability</h6><h3>{{ availability }}%</h3></div></div></div>
+</div>
+<div class="card mb-4"><div class="card-body"><canvas id="line"></canvas></div></div>
+<div class="card"><div class="card-body">
+  <h5>Top Peaks</h5>
+  <table class="table table-sm"><thead><tr><th>Camera</th><th>Timestamp</th><th>Persons</th></tr></thead><tbody>
+    {% for p in peaks %}<tr><td>{{ p.camera_id }}</td><td>{{ p.ts }}</td><td>{{ p.total_persons }}</td></tr>{% endfor %}
+  </tbody></table>
+</div></div>
+<script>
+const labels = {{ labels|tojson }};
+new Chart(document.getElementById('line'), {
+  type:'line',
+  data:{labels, datasets:[
+    {label:'Abbey', data: {{ abbey_vals|tojson }}, borderColor:'#0d6efd'},
+    {label:'Shibuya', data: {{ shibuya_vals|tojson }}, borderColor:'#dc3545'}
+  ]}
+});
+</script>
+{% endblock %}

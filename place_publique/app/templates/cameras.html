@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block content %}
+<h3>Cameras</h3>
+<div class="row g-3">
+{% for c in cameras %}
+  {% set d = latest[c.id] %}
+  <div class="col-md-6"><div class="card"><div class="card-body">
+    <h5>{{ c.name }}</h5>
+    <p>Status: {% if d and d.snapshot_ok %}<span class="text-success">OK{% else %}<span class="text-danger">ERR{% endif %}</span></p>
+    <p>Last seen: {{ d.ts if d else 'n/a' }}</p>
+    <p>Last count: {{ d.total_persons if d else 0 }}</p>
+    <a href="/cameras/{{ c.id }}" class="btn btn-primary btn-sm">Details</a>
+  </div></div></div>
+{% endfor %}
+</div>
+{% endblock %}
