@@ -2,8 +2,7 @@ cameras:
   - id: abbey_road
     name: "Abbey Road Crossing"
     location: "Londres, UK"
-    url: "https://www.abbeyroad.com/crossing"
-    scrape_selector: "img"
+    url: "https://www.youtube.com/live/M3EYAY2MftI"
     active: true
     classes: ["person"]
     interval_minutes: 5
@@ -11,7 +10,7 @@ cameras:
   - id: shibuya
     name: "Shibuya Crossing"
     location: "Tokyo, Japon"
-    url: "https://www.earthcam.com/world/japan/tokyo/shibuya/?cam=shibuya"
+    url: "https://www.youtube.com/live/dfVK7ld38Ys"
     active: true
     classes: ["person"]
     interval_minutes: 5

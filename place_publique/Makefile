@@ -1,7 +1,7 @@
 # Makefile — Place Publique / FlowView
 # Usage : make <cible>
 
-.PHONY: build up down logs shell demo test trigger restart dev
+.PHONY: build up down logs shell demo test trigger restart dev fixtures
 
 ## Construire l'image Docker
 build:
@@ -42,3 +42,13 @@ restart:
 ## Mode développement Flask avec rechargement automatique
 dev:
 	flask --app app run --host 0.0.0.0 --port 5000 --debug
+
+## Capturer des frames réelles depuis les webcams YouTube pour les fixtures de test
+fixtures:
+	docker compose run --rm web python -c "\
+import sys; sys.path.insert(0,'.');\
+from inference.detector import _fetch_frame_from_youtube;\
+import cv2;\
+cams = {'abbey_road':'https://www.youtube.com/live/M3EYAY2MftI','shibuya':'https://www.youtube.com/live/dfVK7ld38Ys'};\
+[cv2.imwrite(f'tests/fixtures/{k}.jpg', f, [cv2.IMWRITE_JPEG_QUALITY,92]) or print(f'✓ {k}') for k,u in cams.items() if (f:=_fetch_frame_from_youtube(u)) is not None]\
+"

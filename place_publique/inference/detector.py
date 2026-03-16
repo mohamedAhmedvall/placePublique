@@ -50,12 +50,84 @@ def _get_yolo_model():
     return _yolo_model
 
 
+def _is_youtube_url(url: str) -> bool:
+    """Détermine si l'URL est un lien YouTube (live ou vidéo)."""
+    return any(domain in url for domain in ["youtube.com", "youtu.be"])
+
+
+def _fetch_frame_from_youtube(url: str) -> Optional[np.ndarray]:
+    """
+    Extrait une frame d'un flux YouTube live via yt-dlp + OpenCV.
+    Retourne None en cas d'échec.
+    """
+    try:
+        import yt_dlp
+
+        ydl_opts = {
+            "format": "best[ext=mp4][height<=720]/best[height<=720]/best",
+            "quiet": True,
+            "no_warnings": True,
+            # Pas de téléchargement, seulement extraction des métadonnées
+            "skip_download": True,
+        }
+
+        logger.info("Résolution du flux YouTube : %s", url)
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+
+        # Récupérer l'URL du flux direct
+        stream_url = None
+        if "url" in info:
+            stream_url = info["url"]
+        elif "formats" in info:
+            # Choisir le meilleur format vidéo ≤ 720p
+            for fmt in reversed(info["formats"]):
+                if fmt.get("vcodec") != "none" and fmt.get("height", 9999) <= 720:
+                    stream_url = fmt["url"]
+                    break
+            if not stream_url:
+                stream_url = info["formats"][-1]["url"]
+
+        if not stream_url:
+            logger.error("Aucun flux vidéo trouvé pour : %s", url)
+            return None
+
+        logger.info("Capture d'une frame depuis le flux live...")
+        cap = cv2.VideoCapture(stream_url)
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+        # Lire quelques frames pour dépasser le buffer et avoir une frame récente
+        frame = None
+        for _ in range(5):
+            ok, f = cap.read()
+            if ok:
+                frame = f
+        cap.release()
+
+        if frame is None:
+            logger.error("Impossible de lire une frame depuis le flux : %s", stream_url[:80])
+        return frame
+
+    except ImportError:
+        logger.error("yt-dlp non installé. Lancez : pip install yt-dlp")
+        return None
+    except Exception as exc:
+        logger.error("Erreur lors de la capture YouTube %s : %s", url, exc)
+        return None
+
+
 def _fetch_image_from_url(url: str) -> Optional[np.ndarray]:
     """
     Télécharge une image depuis une URL HTTP.
-    Si l'URL est une page web, tente de scraper l'image principale.
+    - URLs YouTube → yt-dlp + OpenCV VideoCapture
+    - Image directe → requests
+    - Page HTML     → scraping BeautifulSoup
     Timeout : 10 secondes. Retourne None en cas d'échec.
     """
+    # Cas YouTube live / vidéo
+    if _is_youtube_url(url):
+        return _fetch_frame_from_youtube(url)
+
     try:
         headers = {
             "User-Agent": (
