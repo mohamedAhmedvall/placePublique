@@ -1,0 +1,28 @@
+version: "3.9"
+
+services:
+  web:
+    build: .
+    container_name: place_publique_web
+    ports:
+      - "5000:5000"
+    volumes:
+      # Persistance de la base SQLite
+      - ./data:/app/data
+      # Snapshots annotés accessibles depuis Flask
+      - ./static/snapshots:/app/static/snapshots
+      # Configuration des caméras rechargeable à chaud
+      - ./config:/app/config
+    environment:
+      - FLASK_ENV=production
+      - FLASK_DEBUG=0
+      - SCHEDULER_ENABLED=true
+      - DB_PATH=/app/data/counts.db
+      - CAMERAS_CONFIG=/app/config/cameras.yaml
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

@@ -1,25 +1,126 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="fr" data-bs-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Place Publique</title>
+  <title>{% block title %}Place Publique — FlowView{% endblock %}</title>
+  <!-- Bootstrap 5 CDN (thème sombre) -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    body {
+      background-color: #0d1117;
+      color: #c9d1d9;
+    }
+    .navbar-brand {
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+    .card {
+      background-color: #161b22;
+      border: 1px solid #30363d;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+      transition: box-shadow 0.2s;
+    }
+    .card:hover {
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    }
+    .badge-count {
+      font-size: 2.5rem;
+      font-weight: 700;
+      padding: 0.3em 0.6em;
+      border-radius: 0.5em;
+    }
+    .snapshot-img {
+      width: 100%;
+      height: 260px;
+      object-fit: cover;
+      border-radius: 6px;
+      background-color: #21262d;
+    }
+    .snapshot-placeholder {
+      width: 100%;
+      height: 260px;
+      background-color: #21262d;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #6e7681;
+      font-size: 0.9rem;
+    }
+    .chart-container {
+      position: relative;
+      height: 300px;
+    }
+    .table-dark-custom {
+      --bs-table-bg: #161b22;
+      --bs-table-border-color: #30363d;
+    }
+    footer {
+      border-top: 1px solid #30363d;
+      color: #6e7681;
+    }
+    .status-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 6px;
+    }
+    .status-dot.active { background-color: #3fb950; }
+    .status-dot.inactive { background-color: #6e7681; }
+  </style>
+  {% block extra_head %}{% endblock %}
 </head>
-<body class="bg-light">
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+<body>
+
+<!-- Barre de navigation -->
+<nav class="navbar navbar-expand-lg navbar-dark" style="background-color: #161b22; border-bottom: 1px solid #30363d;">
   <div class="container-fluid">
-    <a class="navbar-brand" href="/">Place Publique</a>
-    <div class="navbar-nav">
-      <a class="nav-link" href="/">Dashboard</a>
-      <a class="nav-link" href="/cameras">Cameras</a>
-      <a class="nav-link" href="/liveview">LiveView</a>
-      <a class="nav-link" href="/settings">Settings</a>
+    <a class="navbar-brand text-white" href="/">
+      <i class="bi bi-camera-video-fill me-2 text-primary"></i>
+      Place Publique
+      <small class="text-muted ms-2" style="font-size:0.65em; font-weight:400;">by FlowView</small>
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <div class="navbar-nav ms-auto">
+        <a class="nav-link" href="/"><i class="bi bi-grid-3x3-gap me-1"></i>Dashboard</a>
+        <a class="nav-link" href="/health" target="_blank"><i class="bi bi-heart-pulse me-1"></i>Health</a>
+      </div>
     </div>
   </div>
 </nav>
-<div class="container py-4">{% block content %}{% endblock %}</div>
+
+<!-- Contenu principal -->
+<main class="container py-4">
+  {% block content %}{% endblock %}
+</main>
+
+<!-- Pied de page -->
+<footer class="py-3 mt-4">
+  <div class="container text-center small">
+    Place Publique — FlowView &bull;
+    Détection piétons YOLOv8n &bull;
+    <span id="footer-time"></span>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // Affichage de l'heure locale en pied de page
+  function updateTime() {
+    const el = document.getElementById('footer-time');
+    if (el) el.textContent = new Date().toLocaleTimeString('fr-FR');
+  }
+  updateTime();
+  setInterval(updateTime, 1000);
+</script>
+{% block extra_scripts %}{% endblock %}
 </body>
 </html>

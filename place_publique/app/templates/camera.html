@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block title %}{{ camera.name }} — Place Publique{% endblock %}
+
+{% block content %}
+<!-- En-tête -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <a href="/" class="btn btn-sm btn-outline-secondary mb-2">
+      <i class="bi bi-arrow-left me-1"></i>Retour au dashboard
+    </a>
+    <h1 class="h3 mb-0 text-white">
+      <i class="bi bi-camera-video me-2 text-primary"></i>{{ camera.name }}
+    </h1>
+    <p class="text-muted small mb-0">
+      <i class="bi bi-geo-alt me-1"></i>{{ camera.location }}
+    </p>
+  </div>
+  <button class="btn btn-primary" id="btn-trigger">
+    <i class="bi bi-play-circle me-2"></i>Déclencher une détection
+  </button>
+</div>
+
+<div id="trigger-status" class="alert alert-success d-none mb-3"></div>
+
+<!-- Snapshot live annoté -->
+<div class="row g-4 mb-4">
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header">
+        <i class="bi bi-image me-2"></i>
+        <strong>Snapshot annoté en direct</strong>
+        {% if latest %}
+          <span class="text-muted small ms-2">
+            — {{ latest.timestamp[:16].replace('T', ' ') }}
+          </span>
+        {% endif %}
+      </div>
+      <div class="card-body p-2">
+        {% if latest %}
+        <img
+          src="{{ snapshot_url }}?t={{ latest.timestamp | replace(':', '') | replace('-', '') }}"
+          alt="Snapshot {{ camera.name }}"
+          class="w-100 rounded"
+          style="max-height: 480px; object-fit: contain; background: #21262d;"
+          id="live-snapshot"
+          onerror="this.style.display='none';"
+        >
+        {% else %}
+        <div class="snapshot-placeholder" style="height: 400px;">
+          <div class="text-center">
+            <i class="bi bi-camera-video-off fs-2 d-block mb-2"></i>
+            Aucun snapshot disponible
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Métriques -->
+  <div class="col-lg-4">
+    <div class="card h-100">
+      <div class="card-header">
+        <i class="bi bi-bar-chart me-2"></i><strong>Métriques</strong>
+      </div>
+      <div class="card-body d-flex flex-column justify-content-center">
+        <div class="text-center mb-4">
+          <div class="display-3 fw-bold text-primary" id="live-count">
+            {% if latest %}{{ latest.count }}{% else %}—{% endif %}
+          </div>
+          <div class="text-muted">piéton(s) détecté(s)</div>
+        </div>
+
+        {% if by_hour %}
+        <hr class="border-secondary">
+        <div class="small text-muted">
+          <div class="d-flex justify-content-between mb-1">
+            <span>Pic aujourd'hui :</span>
+            <strong>{{ by_hour | map(attribute='count') | max | round(0) | int }} piétons/h</strong>
+          </div>
+          <div class="d-flex justify-content-between">
+            <span>Moyenne 24h :</span>
+            <strong>
+              {% set counts_24h = history_24h | map(attribute='count') | list %}
+              {% if counts_24h %}
+                {{ (counts_24h | sum / counts_24h | length) | round(1) }}
+              {% else %}—{% endif %}
+            </strong>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Graphique par heure -->
+<div class="card mb-4">
+  <div class="card-header">
+    <i class="bi bi-graph-up me-2 text-info"></i>
+    <strong>Comptages par heure — {{ camera.name }}</strong>
+  </div>
+  <div class="card-body">
+    <div class="chart-container">
+      <canvas id="hourlyChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Tableau des 20 dernières détections -->
+<div class="card mb-4">
+  <div class="card-header">
+    <i class="bi bi-table me-2"></i>
+    <strong>20 dernières détections</strong>
+  </div>
+  <div class="card-body p-0">
+    {% if recent_detections %}
+    <div class="table-responsive">
+      <table class="table table-dark table-hover table-sm mb-0 table-dark-custom">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Horodatage</th>
+            <th class="text-end">Piétons détectés</th>
+            <th>Snapshot</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for det in recent_detections %}
+          <tr>
+            <td class="text-muted">{{ det.id }}</td>
+            <td>{{ det.timestamp[:19].replace('T', ' ') }}</td>
+            <td class="text-end">
+              <span class="badge bg-primary rounded-pill">{{ det.count }}</span>
+            </td>
+            <td>
+              {% if det.snapshot_path %}
+              <a href="/{{ det.snapshot_path }}" target="_blank" class="text-muted small">
+                <i class="bi bi-image me-1"></i>Voir
+              </a>
+              {% else %}
+              <span class="text-muted small">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="p-4 text-center text-muted">
+      <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+      Aucune détection enregistrée.
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/charts.js"></script>
+<script>
+  // Données pour le graphique par heure
+  const byHour = {{ by_hour | tojson }};
+
+  // Initialisation du graphique
+  initHourlyChart(byHour, 'hourlyChart', '{{ camera.name }}');
+
+  // Déclenchement manuel
+  document.getElementById('btn-trigger').addEventListener('click', function() {
+    const btn = this;
+    const statusDiv = document.getElementById('trigger-status');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Détection en cours...';
+
+    fetch('/api/trigger', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ camera_id: '{{ camera.id }}' })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'ok' && data.results && data.results.length > 0) {
+        const result = data.results[0];
+        statusDiv.className = 'alert alert-success mb-3';
+        statusDiv.innerHTML =
+          '<i class="bi bi-check-circle me-2"></i>' +
+          `Détection terminée : <strong>${result.count}</strong> piéton(s) à ${new Date().toLocaleTimeString('fr-FR')}`;
+
+        // Mettre à jour le comptage affiché
+        document.getElementById('live-count').textContent = result.count;
+
+        // Recharger le snapshot
+        const img = document.getElementById('live-snapshot');
+        if (img) img.src = img.src.split('?')[0] + '?t=' + Date.now();
+      } else {
+        throw new Error(data.message || 'Erreur inconnue');
+      }
+    })
+    .catch(err => {
+      statusDiv.className = 'alert alert-danger mb-3';
+      statusDiv.innerHTML = '<i class="bi bi-x-circle me-2"></i>Erreur : ' + err.message;
+    })
+    .finally(() => {
+      statusDiv.classList.remove('d-none');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-play-circle me-2"></i>Déclencher une détection';
+      setTimeout(() => statusDiv.classList.add('d-none'), 8000);
+    });
+  });
+</script>
+{% endblock %}

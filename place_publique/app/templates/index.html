@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}Place Publique — FlowView{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h1 class="h3 mb-0 text-white">
+      <i class="bi bi-people-fill me-2 text-primary"></i>Place Publique
+    </h1>
+    <p class="text-muted small mb-0">Comptage automatique de piétons en temps réel</p>
+  </div>
+  <div class="d-flex gap-2 align-items-center">
+    <span class="text-muted small">Actualisation auto : 60s</span>
+    <div class="spinner-grow spinner-grow-sm text-success" id="refresh-spinner" style="display:none!important;"></div>
+  </div>
+</div>
+
+<!-- Cartes des caméras -->
+<div class="row g-4 mb-4">
+  {% for cam in cameras %}
+  {% set data = cameras_data.get(cam.id, {}) %}
+  {% set latest = data.get('latest') %}
+  {% set snapshot_url = data.get('snapshot_url', '') %}
+
+  <div class="col-md-6" id="card-{{ cam.id }}">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+          <span class="status-dot active"></span>
+          <strong class="text-white">{{ cam.name }}</strong>
+          <span class="text-muted small ms-2">
+            <i class="bi bi-geo-alt me-1"></i>{{ cam.location }}
+          </span>
+        </div>
+        <a href="/camera/{{ cam.id }}" class="btn btn-sm btn-outline-secondary">
+          <i class="bi bi-arrow-right-circle me-1"></i>Détail
+        </a>
+      </div>
+      <div class="card-body">
+        <!-- Snapshot annoté -->
+        <div class="mb-3 position-relative">
+          <img
+            src="{{ snapshot_url }}"
+            alt="Snapshot {{ cam.name }}"
+            class="snapshot-img"
+            id="snapshot-{{ cam.id }}"
+            onerror="this.style.display='none'; document.getElementById('placeholder-{{ cam.id }}').style.display='flex';"
+          >
+          <div class="snapshot-placeholder" id="placeholder-{{ cam.id }}" style="display:none;">
+            <div class="text-center">
+              <i class="bi bi-camera-video-off fs-3 d-block mb-2"></i>
+              Snapshot indisponible
+            </div>
+          </div>
+        </div>
+
+        <!-- Badge comptage -->
+        <div class="text-center my-3">
+          <span
+            class="badge-count badge {% if cam.id == 'abbey_road' %}bg-primary{% else %}bg-danger{% endif %}"
+            id="count-{{ cam.id }}"
+          >
+            {% if latest %}{{ latest.count }}{% else %}—{% endif %}
+          </span>
+          <div class="mt-2 text-muted small">piéton(s) détecté(s)</div>
+        </div>
+
+        <!-- Horodatage -->
+        <div class="text-center text-muted small" id="ts-{{ cam.id }}">
+          {% if latest %}
+            <i class="bi bi-clock me-1"></i>
+            Dernière détection : {{ latest.timestamp[:16].replace('T', ' ') }}
+          {% else %}
+            <i class="bi bi-clock me-1"></i>Aucune détection
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="col-12">
+    <div class="alert alert-warning">
+      <i class="bi bi-exclamation-triangle me-2"></i>
+      Aucune caméra configurée. Vérifiez <code>config/cameras.yaml</code>.
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Graphique comparatif -->
+<div class="card mb-4">
+  <div class="card-header">
+    <i class="bi bi-graph-up me-2 text-success"></i>
+    <strong>Comparaison 24h — Abbey Road vs Shibuya</strong>
+    <span class="text-muted small ms-2">piétons par relevé</span>
+  </div>
+  <div class="card-body">
+    <div class="chart-container">
+      <canvas id="comparisonChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Bouton déclenchement manuel -->
+<div class="text-center mb-4">
+  <button class="btn btn-outline-primary" id="btn-trigger-all">
+    <i class="bi bi-play-circle me-2"></i>Déclencher toutes les détections
+  </button>
+  <div id="trigger-status" class="mt-2 small text-muted"></div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/charts.js"></script>
+<script>
+  // Données initiales pour le graphique comparatif
+  const camerasData = {{ cameras_data | tojson }};
+
+  // Initialisation du graphique comparatif
+  initComparisonChart(camerasData, 'comparisonChart');
+
+  // Auto-refresh toutes les 60 secondes
+  function refreshCounts() {
+    fetch('/api/counts')
+      .then(r => r.json())
+      .then(data => {
+        data.forEach(cam => {
+          // Mise à jour du comptage
+          const countEl = document.getElementById('count-' + cam.camera_id);
+          if (countEl) countEl.textContent = cam.latest_count;
+
+          // Mise à jour de l'horodatage
+          const tsEl = document.getElementById('ts-' + cam.camera_id);
+          if (tsEl && cam.latest_timestamp) {
+            tsEl.innerHTML = '<i class="bi bi-clock me-1"></i>Dernière détection : ' +
+              cam.latest_timestamp.slice(0, 16).replace('T', ' ');
+          }
+
+          // Mise à jour du snapshot
+          const imgEl = document.getElementById('snapshot-' + cam.camera_id);
+          if (imgEl) {
+            imgEl.src = cam.snapshot_url + '?t=' + Date.now();
+          }
+        });
+
+        // Mise à jour du graphique
+        updateComparisonChart(data, 'comparisonChart');
+      })
+      .catch(err => console.warn('Erreur refresh:', err));
+  }
+
+  setInterval(refreshCounts, 60000);
+
+  // Déclenchement manuel
+  document.getElementById('btn-trigger-all').addEventListener('click', function() {
+    const btn = this;
+    const status = document.getElementById('trigger-status');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Détection en cours...';
+    status.textContent = '';
+
+    fetch('/api/trigger', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+      .then(r => r.json())
+      .then(data => {
+        const counts = data.results
+          ? data.results.map(r => `${r.camera_id}: ${r.count} piéton(s)`).join(' | ')
+          : 'Terminé';
+        status.innerHTML = '<span class="text-success"><i class="bi bi-check-circle me-1"></i>' + counts + '</span>';
+        refreshCounts();
+      })
+      .catch(err => {
+        status.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle me-1"></i>Erreur : ' + err + '</span>';
+      })
+      .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-play-circle me-2"></i>Déclencher toutes les détections';
+      });
+  });
+</script>
+{% endblock %}
