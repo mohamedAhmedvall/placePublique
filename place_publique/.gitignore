@@ -29,10 +29,9 @@ static/snapshots/*.png
 # Cache démo
 data/demo_cache/
 
-# Cache YOLOv8 / Ultralytics
+# Cache YOLOv8 / Ultralytics (modèles téléchargés automatiquement)
 runs/
 *.pt
-!yolov8n.pt
 
 # Tests
 .pytest_cache/
